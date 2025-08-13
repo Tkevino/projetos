@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Quizz Bíblico - Connect Malvinas Play</title>
+<style>
+:root{--bg:#071428;--card:#071a2b;--accent:#60a5fa}
+*{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#06111b 0%,#072034 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:980px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(2,6,23,0.7);border:1px solid rgba(255,255,255,0.03)}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{margin:0;font-size:20px}
+.menu{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:18px 0}
+.btn{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;color:inherit;cursor:pointer}
+.btn.primary{background:linear-gradient(90deg,var(--accent),#7dd3fc);color:#021124;font-weight:700}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.meta{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.timer{font-weight:700;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:10px}
+.progress{height:10px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden;flex:1}
+.bar{height:100%;background:linear-gradient(90deg,var(--accent),#7dd3fc);width:100%}
+.question{font-size:18px;margin:12px 0 18px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.opt{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);cursor:pointer;user-select:none}
+.opt:hover{transform:translateY(-3px);transition:all .12s}
+.opt.correct{background:rgba(22,163,74,0.12);border-color:rgba(22,163,74,0.25)}
+.opt.wrong{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2)}
+.footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px;flex-wrap:wrap}
+.small{font-size:13px;opacity:0.9}
+.overlay{position:fixed;inset:0;background:linear-gradient(90deg, rgba(2,6,23,0.6), rgba(2,6,23,0.8));display:flex;align-items:center;justify-content:center;z-index:60}
+.modal{width:100%;max-width:520px;background:linear-gradient(180deg,#021124,#042033);padding:22px;border-radius:14px;border:1px solid rgba(255,255,255,0.04)}
+.hidden{display:none}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.menu{flex-direction:column}}
+.neon-h1 {
+    font-size: 3rem;
+    color: #98FB98; /* Verde mais suave */
+    text-shadow:
+        0 0 2px #98FB98,
+        0 0 5px #98FB98,
+        0 0 10px #98FB98;
+    padding: 7px;
+}
+.result-ranking {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-top: 10px;
+    color: var(--accent);
+    text-align: center;
+}
+.btn-restart-round {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: inherit;
+    cursor: pointer;
+}
+.btn-restart-round:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+</style>
+</head>
+<body>
+    
+<div class="wrap card" id="root">
+  <div class="header">
+    <h2>Quiz Bíblico — Escolha a rodada</h2>
+    <div class="small">Connect Malvinas Play</div>
+  </div>
+
+  <div id="menuView" class="center">
+    <p class="small">Quiz Bíblico - Escolha quantas perguntas e o tempo correspondente:</p>
+    <div class="menu">
+      <button class="btn" data-q="10" data-t="60">10 perguntas — 1 minuto</button>
+      <button class="btn" data-q="30" data-t="180">30 perguntas — 3 minutos</button>
+      <button class="btn" data-q="60" data-t="300">60 perguntas — 5 minutos</button>
+      <button class="btn primary" data-q="100" data-t="600">100 perguntas — 10 minutos</button>
+    </div>
+    <p class="small">As perguntas são embaralhadas a cada rodada.</p>
+    <p class="small">Desenvolvido por Kevin Melo.</p>
+  </div>
+
+  <div id="gameView" class="hidden">
+    <div class="meta">
+      <div class="timer">Tempo: <span id="timeDisplay">1:40</span></div>
+      <div class="progress" style="min-width:180px"><div class="bar" id="timeBar" style="width:100%"></div></div>
+      <div class="small">Pergunta <span id="qIdx">0</span>/<span id="qTotal">0</span></div>
+      <div class="small">Acertos: <strong id="score">0</strong></div>
+    </div>
+
+    <div id="content">
+      <div class="center">
+        <p class="small">Clique em uma opção para responder rápido.</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="small">Dica: responda rápido — é por tempo.</div>
+      <div>
+        <button class="btn-restart-round" id="btnRestartRound">Reiniciar rodada</button>
+        <button class="btn" id="btnRestart">Voltar ao menu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="resOverlay" class="overlay hidden">
+  <div class="modal">
+    <h2 id="resTitle">Tempo!</h2>
+    <p id="resText"></p>
+    <div class="result-ranking" id="rankingText"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn" id="reviewBtn">Rever respostas</button>
+      <button class="btn primary" id="againBtn">Jogar de novo</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmOverlay" class="overlay hidden">
+    <div class="modal">
+        <h2>Confirmar</h2>
+        <p>Tem certeza que deseja reiniciar a rodada? Você perderá o progresso atual.</p>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+            <button class="btn" id="confirmCancel">Cancelar</button>
+            <button class="btn primary" id="confirmRestart">Reiniciar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bloqueios de contexto e teclado para evitar inspeção e manipulação
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', function(e) {
+    const k = e.key.toUpperCase();
+    if (k === 'F12' || (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'J' || k === 'C')) || (e.ctrlKey && k === 'U')) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+});
+
+// Dados das perguntas com IDs para evitar repetição
+const _q = [
+    {"id":1,"q":"Qual é o primeiro livro da Bíblia?","options":["Êxodo","Gênesis","Levítico","Números"],"answer":1},
+    {"id":2,"q":"Quem construiu a arca para sobreviver ao dilúvio?","options":["Moisés","Abraão","Noé","Davi"],"answer":2},
+    {"id":3,"q":"Onde nasceu Jesus?","options":["Nazaré","Jerusalém","Belém","Campeche"],"answer":2},
+    {"id":4,"q":"Quem traiu Jesus por 30 moedas de prata?","options":["Pedro","Judas Iscariotes","Tomé","Pilatos"],"answer":1},
+    {"id":5,"q":"Quantos dias Jesus jejuou no deserto?","options":["30","40","7","3"],"answer":1},
+    {"id":6,"q":"Quem foi lançado na cova dos leões?","options":["Daniel","José","Sansão","Elias"],"answer":0},
+    {"id":7,"q":"Quem interpretou os sonhos do Faraó no Egito?","options":["Neemias","Elias","José","Isaque"],"answer":2},
+    {"id":8,"q":"Quem foi o rei que escreveu muitos Salmos?","options":["Salomão","Davi","Josias","Saul"],"answer":1},
+    {"id":9,"q":"Quantos livros tem o Novo Testamento?","options":["27","39","66","24"],"answer":0},
+    {"id":10,"q":"Quem dividiu o Mar Vermelho?","options":["Moisés","Josué","Arão","Elias"],"answer":0},
+    {"id":11,"q":"Quem foi vendido por seus irmãos e levado ao Egito?","options":["Esaú","Jacó","José","Benjamim"],"answer":2},
+    {"id":12,"q":"Quem pediu para que seu povo fosse libertado do Egito?","options":["Abraão","Moisés","Davi","Ester"],"answer":1},
+    {"id":13,"q":"Quem escreveu a maior parte das epístolas do Novo Testamento?","options":["Pedro","Paulo","João","Tiago"],"answer":1},
+    {"id":14,"q":"Qual discípulo negou Jesus três vezes antes do amanhecer?","options":["Tomé","Pedro","Judas","André"],"answer":1},
+    {"id":15,"q":"Quem era irmão de Marta e Maria, amigo de Jesus?","options":["Lázaro","Matias","Tadeu","Simão"],"answer":0},
+    {"id":16,"q":"Qual livro conta a criação do mundo?","options":["Êxodo","Gênesis","Apocalipse","Isaías"],"answer":1},
+    {"id":17,"q":"Quem foi o primeiro homem criado por Deus?","options":["Abraão","Noé","Adão","Caim"],"answer":2},
+    {"id":18,"q":"Qual foi a primeira mulher criada?","options":["Sara","Rebeca","Eva","Raquel"],"answer":2},
+    {"id":19,"q":"Quem foi o gigante derrotado por Davi?","options":["Golias","Sifera","Ogue","Rúben"],"answer":0},
+    {"id":20,"q":"Qual profeta foi levado ao céu numa carruagem de fogo?","options":["Elias","Eliseu","Isaías","Jeremias"],"answer":0},
+    {"id":21,"q":"Quem escreveu o livro de Apocalipse?","options":["Paulo","Pedro","João","Lucas"],"answer":2},
+    {"id":22,"q":"Que instrumento Sansão usou para derrubar o templo dos filisteus?","options":["Espada","Quebra-ossos","Quebra-pilares","Cadeado"],"answer":1},
+    {"id":23,"q":"Quem era pai de Davi?","options":["Jessé","Elias","Jó","Benjamim"],"answer":0},
+    {"id":24,"q":"Quantos dias choveu durante o dilúvio de Noé?","options":["40","7","100","12"],"answer":0},
+    {"id":25,"q":"Quem foi o primeiro rei de Israel?","options":["Davi","Saul","Salomão","Ezequias"],"answer":1},
+    {"id":26,"q":"Qual rei pediu sabedoria a Deus e teve grande fama?","options":["Davi","Saul","Salomão","Ezequiel"],"answer":2},
+    {"id":27,"q":"Quem resistiu à tentação no deserto segundo os evangelhos?","options":["Pedro","Paulo","Jesus","João Batista"],"answer":2},
+    {"id":28,"q":"Quem batizou Jesus no Rio Jordão?","options":["João Batista","Pedro","Felipe","Ninguém"],"answer":0},
+    {"id":29,"q":"Qual é o último livro da Bíblia?","options":["Judas","Apocalipse","Atos","Hebreus"],"answer":1},
+    {"id":30,"q":"Quem escreveu o Evangelho segundo Mateus?","options":["Mateus","Marcos","Lucas","João"],"answer":0},
+    {"id":31,"q":"Qual evangelho tem relatos detalhados sobre o nascimento de Jesus?","options":["João","Marcos","Lucas","Atos"],"answer":2},
+    {"id":32,"q":"Quem foi o médico e autor de um evangelho?","options":["Mateus","Lucas","Marcos","João"],"answer":1},
+    {"id":33,"q":"Quem foi reduzido a pastor de ovelhas antes de se tornar rei?","options":["Saul","Davi","Salomão","Elias"],"answer":1},
+    {"id":34,"q":"Qual dos apóstolos é conhecido como 'o discípulo amado'?","options":["Pedro","João","Tiago","André"],"answer":1},
+    {"id":35,"q":"Quem ergueu a estátua de um bezerro de ouro em Israel?","options":["Saul","Arão","Moisés","Josué"],"answer":1},
+    {"id":36,"q":"Quem venceu a batalha de Jericó com uma marcha e trombetas?","options":["Moisés","Josué","Sansão","Ezequias"],"answer":1},
+    {"id":37,"q":"Qual apóstolo foi pescador antes de seguir Jesus?","options":["Mateus","Paulo","Pedro","Lucas"],"answer":2},
+    {"id":38,"q":"Quem mandou Nazaré ser a cidade onde Jesus cresceu?","options":["Não é mandado; ele cresceu lá","Herodes","Pilatos","Augusto"],"answer":0},
+    {"id":39,"q":"Quem recebeu as Tábuas da Lei no Monte Sinai?","options":["Josué","Moisés","Arão","Calebe"],"answer":1},
+    {"id":40,"q":"Que livro contém muitos provérbios e sabedoria de Salomão?","options":["Eclesiastes","João","Provérbios","Rute"],"answer":2},
+    {"id":41,"q":"Quem era a mãe de Samuel, que orou muito por ele?","options":["Ana","Sara","Ester","Rebeca"],"answer":0},
+    {"id":42,"q":"Qual profeta confrontou os profetas de Baal no monte Carmelo?","options":["Elias","Eliseu","Isaías","Jeremias"],"answer":0},
+    {"id":43,"q":"Qual livro conta a história de Rute e sua fidelidade?","options":["Rute","Jó","Tito","Neemias"],"answer":0},
+    {"id":44,"q":"Quem era sobrinho de Moisés e o ajudou a liderar?","options":["Calebe","Arão","Josué","Gideão"],"answer":1},
+    {"id":45,"q":"Quem foi amado por Deus e teve uma 'aliança de arco-íris' após o dilúvio?","options":["Noé","Abraão","Moisés","Davi"],"answer":0},
+    {"id":46,"q":"Quem é considerado o pai dos hebreus e fez aliança com Deus?","options":["Abraão","Isaque","Jacó","José"],"answer":0},
+    {"id":47,"q":"Qual filho de Abraão quase foi sacrificado por obediência?","options":["Ismael","Isaque","Jacó","Benjamim"],"answer":1},
+    {"id":48,"q":"Quem teve doze filhos que deram origem às 12 tribos de Israel?","options":["José","Jacó","Esaú","Judá"],"answer":1},
+    {"id":49,"q":"Qual dos apóstolos duvidou da ressurreição até tocar as feridas?","options":["Tomé","Pedro","André","Mateus"],"answer":0},
+    {"id":50,"q":"Quem foi preso por pregar e depois libertado por um anjo (Atos)?","options":["Pedro","Paulo","Silas","Barnabé"],"answer":0},
+    {"id":51,"q":"Quem acompanhou Paulo em várias viagens missionárias (companheiro famoso)?","options":["Barnabé","Timóteo","Lucas","Silas"],"answer":3},
+    {"id":52,"q":"Qual cidade foi destruída por fogo por abominação, segundo Gênesis?","options":["Babel","Sodoma e Gomorra","Jerusalém","Nínive"],"answer":1},
+    {"id":53,"q":"Quem pregou o sermão conhecido como 'Sermão da Montanha'?","options":["Pedro","Paulo","Jesus","João Batista"],"answer":2},
+    {"id":54,"q":"Qual é o menor versículo da Bíblia (na versão em português 'Jesus chorou')?","options":["João 11:35","Gênesis 1:1","Salmo 23:1","Mateus 5:3"],"answer":0},
+    {"id":55,"q":"Quem foi o profeta que escreveu Lamentações?","options":["Jeremias","Isaías","Ezequiel","Daniel"],"answer":0},
+    {"id":56,"q":"Quem liderou os israelitas à Terra Prometida depois de Moisés?","options":["Calebe","Josué","Elias","Samuel"],"answer":1},
+    {"id":57,"q":"Qual discípulo escreveu três pequenas epístolas e o evangelho que leva seu nome?","options":["Mateus","João","Pedro","Tiago"],"answer":1},
+    {"id":58,"q":"Quem escreveu Atos dos Apóstolos?","options":["Paulo","Lucas","Pedro","João"],"answer":1},
+    {"id":59,"q":"Qual mulher foi rainha e salvou seu povo (livro no A.T.)?","options":["Ester","Rute","Débora","Miriã"],"answer":0},
+    {"id":60,"q":"Quem conduziu os israelitas após a morte de Moisés e venceu Jericó?","options":["Calebe","Josué","Eli","Samuel"],"answer":1},
+    {"id":61,"q":"Quantos discípulos (apóstolos) principais Jesus teve?","options":["10","11","12","13"],"answer":2},
+    {"id":62,"q":"Quem foi lançado ao mar e engolido por um grande peixe?","options":["Jonas","Elias","Amós","Neemias"],"answer":0},
+    {"id":63,"q":"Quem sucedeu a Elias como profeta (fez milagres similares)?","options":["Eliseu","Jeremias","Isaías","Ezequiel"],"answer":0},
+    {"id":64,"q":"Quem pediu um sinal a Deus e teve queimadas as oferendas de Baal?","options":["Elias","Isaías","Jeremias","Ezequiel"],"answer":0},
+    {"id":65,"q":"Quem foi o juiz israelita conhecido por força sobrenatural (cortou suas amarras)?","options":["Sansão","Gideão","Débora","Jefté"],"answer":0},
+    {"id":66,"q":"Quem foi o profeta que viu visões de ossos secos (valor simbólico)?","options":["Ezequiel","Isaías","Jeremias","Daniel"],"answer":0},
+    {"id":67,"q":"Qual apóstolo foi ferrenho perseguidor antes de sua conversão no caminho de Damasco?","options":["Pedro","Paulo","Tiago","André"],"answer":1},
+    {"id":68,"q":"Qual é o salmo famoso que começa 'O Senhor é meu pastor'?","options":["Salmo 23","Salmo 51","Salmo 1","Salmo 100"],"answer":0},
+    {"id":69,"q":"Quem pediu sabedoria e riqueza em troca de obediência a Deus (rei famoso)?","options":["Saul","Salomão","Davi","Ezequias"],"answer":1},
+    {"id":70,"q":"Quem foi profeta quando o templo foi destruído e escreveu profecias de restauração?","options":["Jeremias","Ezequiel","Daniel","Isaías"],"answer":1},
+    {"id":71,"q":"Qual trabalho de Pedro após a ressurreição é relatado em Atos (cura)?","options":["Cura de um coxo","Multiplicação de pães","Curou uma mulher doente","Transformou água em vinho"],"answer":0},
+    {"id":72,"q":"Quem recebeu a visão dos 'quatro cavalos' no Apocalipse?","options":["João","Paulo","Pedro","Tiago"],"answer":0},
+    {"id":73,"q":"Qual mulher disse 'a minha alma engrandece ao Senhor' (cântico)?","options":["Miriã","Ana","Maria (mãe de Jesus)","Ester"],"answer":2},
+    {"id":74,"q":"Quem foi o sábio que escreveu 'Tudo é vaidade'?","options":["Salomão","Davi","Eclesiastes","Isaías"],"answer":0},
+    {"id":75,"q":"Quem recusou adorar o ídolo e foi lançado na fornalha, sobrevivendo com seus amigos?","options":["Daniel e amigos","Elias","José","Moisés"],"answer":0},
+    {"id":76,"q":"Qual personagem teve o manto partido em duas no nascimento de uma nação (Jacó/Israel)?","options":["Jacó","José","Benjamim","Judá"],"answer":0},
+    {"id":77,"q":"Quem foi conhecido por seu sacrifício e fé quando provado por Deus (ex.: quase sacrificar o filho)?","options":["Abraão","Isaque","Moisés","Jacó"],"answer":0},
+    {"id":78,"q":"Que livro começa com 'No princípio criou Deus os céus e a terra'?","options":["Salmos","Gênesis","João","Provérbios"],"answer":1},
+    {"id":79,"q":"Qual mulher foi tomada por Poteifar e gerou uma acusação contra José no Egito?","options":["A esposa de Potifar","Ester","Raquel","Miriã"],"answer":0},
+    {"id":80,"q":"Quem foi escolhido para suceder Judas entre os 12 (em Atos)?","options":["Matias","Paulo","Barnabé","Timóteo"],"answer":0},
+    {"id":81,"q":"Qual apóstolo escreveu cartas chamadas 'epístolas pastorais' (1 e 2 Timóteo)?","options":["Paulo","Pedro","João","Tiago"],"answer":0},
+    {"id":82,"q":"Qual era o ofício de Mateus antes de seguir Jesus?","options":["Pescador","Cobrador de impostos","Carpinteiro","Leproso"],"answer":1},
+    {"id":83,"q":"Qual o nome do jardim onde Jesus orou antes de ser preso?","options":["Getsêmani","Éden","Olivos","Betânia"],"answer":0},
+    {"id":84,"q":"Quem perguntou 'Senhor, dá-nos mais fé' (um dos discípulos)?","options":["Pedro","Tomé","Mateus","João"],"answer":0},
+    {"id":85,"q":"Qual profeta confrontou o rei Davi por seu pecado com Bate-Seba?","options":["Natã","Samuel","Elias","Eliseu"],"answer":0},
+    {"id":86,"q":"Quem voltou para Jerusalém para reconstruir os muros após o exílio (livro com seu nome)?","options":["Neemias","Esdras","Zacarias","Ageu"],"answer":0},
+    {"id":87,"q":"Que apóstolo escreveu uma carta enfatizando a fé demonstrada por obras (ex.: Abraão)?","options":["Tiago","Pedro","Paulo","João"],"answer":0},
+    {"id":88,"q":"Qual dos evangelhos começa com 'No princípio era o Verbo'?","options":["Mateus","Marcos","Lucas","João"],"answer":3},
+    {"id":89,"q":"Quem tocou o manto de Jesus e foi curada (episódio de fé)?","options":["A mulher com fluxo de sangue","Marta","Maria","Joana"],"answer":0},
+    {"id":90,"q":"Quem era líder militar e juiz que derrotou os midianitas com 300 homens?","options":["Sansão","Gideão","Débora","Jefté"],"answer":1},
+    {"id":91,"q":"Quem escreveu muitas cartas a igrejas e era antes perseguidor de cristãos?","options":["Pedro","Paulo","João","Matias"],"answer":1},
+    {"id":92,"q":"Qual era a profissão habitual de Paulo antes de suas viagens missionárias?","options":["Pescador","Tecelão","Fariseu / fabricante de tendas","Carpinteiro"],"answer":2},
+    {"id":93,"q":"Que evento marca o início da igreja cristã em Atos (vento e línguas)?","options":["Pentecostes","Natal","Páscoa","Batismo de João"],"answer":0},
+    {"id":94,"q":"Quem cavalgou a Arca da Aliança? (pergunta capciosa) — o que aconteceu com a arca?","options":["Levitas a carregaram","Faraó a destruiu","Foi levada para o céu","Nunca existiu"],"answer":0},
+    {"id":95,"q":"Quem era conhecida por sua canção de vitória após atravessar o Mar Vermelho?","options":["Miriã","Ana","Débora","Ester"],"answer":0},
+    {"id":96,"q":"Qual foi a moeda usada para pagar a traição de Judas (valor relatado)?","options":["30 moedas de prata","30 moedas de ouro","100 moedas de prata","10 moedas"],"answer":0},
+    {"id":97,"q":"Qual é a mensagem central dos evangelhos?","options":["Lei e sacrifício","Vida, morte e ressurreição de Jesus","Conquista militar","Profecias sobre a terra"],"answer":1},
+    {"id":98,"q":"Quem foi a primeira pessoa a ser criada no Éden?","options":["Adão","Eva","Abel","Caim"],"answer":0},
+    {"id":99,"q":"Quem foi o primeiro filho de Adão e Eva?","options":["Abel","Caim","Sete","Noé"],"answer":1},
+    {"id":100,"q":"Qual foi o nome da esposa de Noé?","options":["Naamá","Tamar","Zilpa","Não há menção específica"],"answer":3},
+    {"id":101,"q":"Quem foi o pai de Abraão?","options":["Terá","Harã","Naor","Ló"],"answer":0},
+    {"id":102,"q":"Qual o nome do filho de Abraão com a serva Hagar?","options":["Isaque","Ismael","Jacó","Esaú"],"answer":1},
+    {"id":103,"q":"Onde Abraão quase sacrificou seu filho Isaque?","options":["Monte Sinai","Monte Moriá","Monte Carmelo","Monte das Oliveiras"],"answer":1},
+    {"id":104,"q":"Quem era a esposa de Isaque?","options":["Rebeca","Sara","Raquel","Lia"],"answer":0},
+    {"id":105,"q":"Qual dos filhos de Isaque vendeu seu direito de primogenitura?","options":["Jacó","Esaú","Rúben","Judá"],"answer":1},
+    {"id":106,"q":"Qual o nome do filho mais novo de Jacó?","options":["José","Benjamim","Judá","Rúben"],"answer":1},
+    {"id":107,"q":"Quem era a mãe de Moisés?","options":["Joquebede","Miriã","Hagar","Eva"],"answer":0},
+    {"id":108,"q":"Quem foi o irmão de Moisés que o ajudou a falar com o Faraó?","options":["Arão","Calebe","Josué","Nadabe"],"answer":0},
+    {"id":109,"q":"Qual praga não aconteceu no Egito?","options":["Água em sangue","Sapos","Gafanhotos","Chuvas de fogo"],"answer":3},
+    {"id":110,"q":"Quem ficou no monte Horebe enquanto Moisés subia o Sinai?","options":["Arão","Josué","Calebe","Ninguém"],"answer":1},
+    {"id":111,"q":"Qual foi a primeira praga do Egito?","options":["Gafanhotos","Morte dos primogênitos","Trevas","Água em sangue"],"answer":3},
+    {"id":112,"q":"Qual era o nome da sogra de Moisés?","options":["Zípora","Rebeca","Débora","Jetro"],"answer":3},
+    {"id":113,"q":"Qual animal foi usado para a travessia do Mar Vermelho?","options":["Cabra","Boi","Ovelha","Nenhum"],"answer":3},
+    {"id":114,"q":"O que Deus mandou chover do céu para alimentar o povo no deserto?","options":["Codornizes","Maná","Pão","Frutas"],"answer":1},
+    {"id":115,"q":"Onde os 10 Mandamentos foram dados a Moisés?","options":["Deserto do Sinai","Monte Nebo","Monte Carmelo","Monte Sinai"],"answer":3},
+    {"id":116,"q":"Quem sucedeu Moisés como líder de Israel?","options":["Arão","Calebe","Josué","Samuel"],"answer":2},
+    {"id":117,"q":"Qual era o nome da prostituta que ajudou os espias em Jericó?","options":["Débora","Ester","Raabe","Miriã"],"answer":2},
+    {"id":118,"q":"Como as muralhas de Jericó caíram?","options":["Terremoto","Sacos de areia","Gritos e trombetas","Batalha"],"answer":2},
+    {"id":119,"q":"Qual era a fraqueza de Sansão?","options":["Seu cabelo","Sua visão","Sua força","Sua velocidade"],"answer":0},
+    {"id":120,"q":"Quem foi a mulher que traiu Sansão?","options":["Dalila","Miriã","Ester","Débora"],"answer":0},
+    {"id":121,"q":"Qual era o nome do juiz que derrotou os midianitas com apenas 300 homens?","options":["Sansão","Gideão","Jefté","Débora"],"answer":1},
+    {"id":122,"q":"Quem foi o profeta que ungiu Saul e Davi como reis?","options":["Natã","Eliseu","Samuel","Elias"],"answer":2},
+    {"id":123,"q":"Qual foi o primeiro rei de Israel?","options":["Davi","Saul","Salomão","Josias"],"answer":1},
+    {"id":124,"q":"Onde Davi nasceu?","options":["Belém","Jerusalém","Nazaré","Hebra"],"answer":0},
+    {"id":125,"q":"Quem era o pai de Davi?","options":["Jessé","Saul","Salomão","Jonas"],"answer":0},
+    {"id":126,"q":"Qual foi o gigante que Davi matou?","options":["Golias","Sifera","Ogue","Neemias"],"answer":0},
+    {"id":127,"q":"Qual era a profissão de Davi antes de ser rei?","options":["Pescador","Pastor de ovelhas","Soldado","Carpinteiro"],"answer":1},
+    {"id":128,"q":"Quem foi o filho de Davi que se rebelou contra ele?","options":["Salomão","Absalão","Adonias","Amnon"],"answer":1},
+    {"id":129,"q":"Qual era o nome da esposa de Davi?","options":["Bate-Seba","Mical","Abigail","Raquel"],"answer":0},
+    {"id":130,"q":"Quem foi o rei de Israel que era conhecido por sua sabedoria?","options":["Davi","Salomão","Saul","Ezequias"],"answer":1},
+    {"id":131,"q":"Onde Salomão construiu o templo?","options":["Jerusalém","Belém","Hebra","Sodoma"],"answer":0},
+    {"id":132,"q":"Qual profeta foi levado ao céu em uma carruagem de fogo?","options":["Eliseu","Isaías","Elias","Jeremias"],"answer":2},
+    {"id":133,"q":"Quem sucedeu a Elias como profeta?","options":["Eliseu","Isaías","Jeremias","Ezequiel"],"answer":0},
+    {"id":134,"q":"Qual era o nome do profeta que ficou três dias e três noites no ventre de um grande peixe?","options":["Elias","Jonas","Jeremias","Isaías"],"answer":1},
+    {"id":135,"q":"Quem foi o profeta que viveu na cova dos leões?","options":["Daniel","Ezequiel","Isaías","Jeremias"],"answer":0},
+    {"id":136,"q":"Qual livro da Bíblia é uma coleção de poemas e cânticos?","options":["Provérbios","Salmos","Eclesiastes","Gênesis"],"answer":1},
+    {"id":137,"q":"Qual livro da Bíblia é sobre um homem fiel que sofreu grandes perdas?","options":["Jó","Rute","Ester","Neemias"],"answer":0},
+    {"id":138,"q":"Quem escreveu o livro de Provérbios?","options":["Davi","Salomão","Elias","Isaías"],"answer":1},
+    {"id":139,"q":"Qual livro da Bíblia fala sobre a reconstrução dos muros de Jerusalém?","options":["Esdras","Neemias","Ageu","Zacarias"],"answer":1},
+    {"id":140,"q":"Quem era o rei de Babilônia quando Daniel estava lá?","options":["Nabucodonosor","Ciro","Dario","Herodes"],"answer":0},
+    {"id":141,"q":"Qual livro do Novo Testamento conta a história dos primeiros anos da igreja?","options":["Mateus","Atos dos Apóstolos","Romanos","Apocalipse"],"answer":1},
+    {"id":142,"q":"Quem foi a mãe de João Batista?","options":["Maria","Isabel","Ana","Marta"],"answer":1},
+    {"id":143,"q":"Quem foi o pai de João Batista?","options":["José","Zacarias","Gabriel","Herodes"],"answer":1},
+    {"id":144,"q":"Onde João Batista foi batizado?","options":["Rio Jordão","Mar da Galileia","Mar Morto","Rio Nilo"],"answer":0},
+    {"id":145,"q":"Qual milagre Jesus fez nas Bodas de Caná?","options":["Cura do cego","Multiplicação dos pães","Transformou água em vinho","Ressurreição de Lázaro"],"answer":2},
+    {"id":146,"q":"Quantos pães e peixes Jesus usou para alimentar a multidão?","options":["5 pães e 2 peixes","7 pães e 2 peixes","5 pães e 3 peixes","10 pães e 5 peixes"],"answer":0},
+    {"id":147,"q":"Quem foi o discípulo que andou sobre as águas com Jesus?","options":["Pedro","João","Tiago","André"],"answer":0},
+    {"id":148,"q":"Quem foi o discípulo que foi um cobrador de impostos?","options":["Pedro","João","Mateus","Lucas"],"answer":2},
+    {"id":149,"q":"Qual foi o nome do apóstolo que era o 'discípulo amado'?","options":["Pedro","João","Tiago","Mateus"],"answer":1},
+    {"id":150,"q":"Qual era a profissão de Pedro antes de seguir Jesus?","options":["Pescador","Carpinteiro","Cobrador de impostos","Soldado"],"answer":0},
+    {"id":151,"q":"Quantos evangelhos há na Bíblia?","options":["2","4","5","6"],"answer":1},
+    {"id":152,"q":"Onde Jesus foi crucificado?","options":["Belém","Nazaré","Gólgota","Jerusalém"],"answer":2},
+    {"id":153,"q":"Qual era a profissão de Lucas?","options":["Pescador","Médico","Carpinteiro","Cobrador de impostos"],"answer":1},
+    {"id":154,"q":"Qual é a primeira carta de Paulo no Novo Testamento?","options":["Romanos","Coríntios","Efésios","Gálatas"],"answer":0},
+    {"id":155,"q":"Quem foi o apóstolo que escreveu o livro de Apocalipse?","options":["Pedro","Paulo","João","Tiago"],"answer":2},
+    {"id":156,"q":"O que aconteceu em Pentecostes?","options":["Jesus ressuscitou","O Espírito Santo desceu","Jesus ascendeu ao céu","Jesus foi batizado"],"answer":1},
+    {"id":157,"q":"Quem foi o primeiro mártir cristão?","options":["Pedro","Estêvão","Tiago","João Batista"],"answer":1},
+    {"id":158,"q":"Quem foi o companheiro de Paulo em sua primeira viagem missionária?","options":["Timóteo","Barnabé","Silas","Tito"],"answer":1},
+    {"id":159,"q":"Qual era o nome do imperador romano que perseguiu os cristãos?","options":["César Augusto","Herodes","Nero","Pilatos"],"answer":2},
+    {"id":160,"q":"Qual é a última carta de Paulo no Novo Testamento?","options":["Timóteo","Filemom","2 Timóteo","Tito"],"answer":2},
+    {"id":161,"q":"Onde Paulo nasceu?","options":["Tarso","Jerusalém","Roma","Antioquia"],"answer":0},
+    {"id":162,"q":"Quem foi o discípulo que traiu Jesus por 30 moedas de prata?","options":["Judas Iscariotes","Pedro","João","Tomé"],"answer":0},
+    {"id":163,"q":"Quem foi a mulher que ungiu Jesus com perfume?","options":["Maria Madalena","Marta","Maria (irmã de Lázaro)","Joana"],"answer":2},
+    {"id":164,"q":"Qual o nome do jardim onde Jesus foi preso?","options":["Éden","Getsêmani","Olivos","Jardim do Rei"],"answer":1},
+    {"id":165,"q":"Quem era o sumo sacerdote que interrogou Jesus?","options":["Caifás","Anás","Herodes","Pilatos"],"answer":0},
+    {"id":166,"q":"Quem foi o governador romano que condenou Jesus?","options":["Pilatos","Herodes","Tibério","Nero"],"answer":0},
+    {"id":167,"q":"Onde Jesus foi batizado por João Batista?","options":["Mar Morto","Rio Jordão","Mar da Galileia","Rio Nilo"],"answer":1},
+    {"id":168,"q":"Qual a idade de Jesus quando começou seu ministério?","options":["30 anos","33 anos","40 anos","20 anos"],"answer":0},
+    {"id":169,"q":"Quem escreveu o livro de Hebreus?","options":["Paulo","Pedro","Lucas","Desconhecido"],"answer":3},
+    {"id":170,"q":"Qual era a profissão de Tiago e João antes de se tornarem discípulos?","options":["Pescadores","Carpinteiros","Cobrador de impostos","Soldados"],"answer":0},
+    {"id":171,"q":"Quem foi a primeira pessoa a ver Jesus ressuscitado?","options":["Maria Madalena","Pedro","João","Tomé"],"answer":0},
+    {"id":172,"q":"Qual é o único evangelho que não contém a parábola do Filho Pródigo?","options":["Mateus","Marcos","Lucas","João"],"answer":3},
+    {"id":173,"q":"Quem foi o rei que pediu a cabeça de João Batista?","options":["Herodes","Pilatos","César","Dario"],"answer":0},
+    {"id":174,"q":"Qual o nome da montanha onde Jesus pregou o 'Sermão da Montanha'?","options":["Monte Tabor","Monte Carmelo","Monte das Oliveiras","Não é especificado"],"answer":3},
+    {"id":175,"q":"Quem foi o apóstolo que substituiu Judas Iscariotes?","options":["Barnabé","Matias","Paulo","Timóteo"],"answer":1},
+    {"id":176,"q":"Qual a cidade onde os discípulos foram chamados 'cristãos' pela primeira vez?","options":["Jerusalém","Antioquia","Roma","Corinto"],"answer":1},
+    {"id":177,"q":"Quem foi o profeta que foi engolido por um grande peixe?","options":["Jonas","Elias","Jeremias","Isaías"],"answer":0},
+    {"id":178,"q":"Quantos livros tem o Antigo Testamento?","options":["39","27","66","40"],"answer":0},
+    {"id":179,"q":"Quem foi o juiz que foi chamado 'o libertador de Israel'?","options":["Sansão","Gideão","Débora","Jefté"],"answer":1},
+    {"id":180,"q":"Qual é o maior livro da Bíblia em capítulos?","options":["Gênesis","Salmos","Isaías","Apocalipse"],"answer":1},
+    {"id":181,"q":"Qual é o menor livro da Bíblia?","options":["Jó","Obadias","Salmos","Filemom"],"answer":1},
+    {"id":182,"q":"Qual foi o nome do filho de Abraão e Sara?","options":["Ismael","Isaque","Jacó","José"],"answer":1},
+    {"id":183,"q":"Quem era a esposa de Jacó?","options":["Rebeca","Raquel","Lia","Sara"],"answer":1},
+    {"id":184,"q":"Qual o nome do filho de Davi que se tornou rei?","options":["Salomão","Absalão","Adonias","Amnon"],"answer":0},
+    {"id":185,"q":"Onde Deus entregou os Dez Mandamentos?","options":["Monte Nebo","Monte Horebe","Monte Sinai","Monte Carmelo"],"answer":2},
+    {"id":186,"q":"Qual a idade de Noé quando o dilúvio começou?","options":["100 anos","500 anos","600 anos","950 anos"],"answer":2},
+    {"id":187,"q":"Qual animal foi o primeiro a ser solto da Arca de Noé?","options":["Pomba","Corvo","Águia","Gavião"],"answer":1},
+    {"id":188,"q":"Qual o nome do rio onde Naamã se curou da lepra?","options":["Jordão","Nilo","Eufrates","Tigre"],"answer":0},
+    {"id":189,"q":"Onde Jesus transformou água em vinho?","options":["Belém","Caná da Galileia","Nazaré","Jerusalém"],"answer":1},
+    {"id":190,"q":"Qual o nome do discípulo que foi conhecido por sua incredulidade?","options":["Tomé","Pedro","João","Mateus"],"answer":0},
+    {"id":191,"q":"Qual a profissão de Lázaro?","options":["Pescador","Não há menção","Carpinteiro","Cobrador de impostos"],"answer":1},
+    {"id":192,"q":"Onde Jesus subiu aos céus?","options":["Monte das Oliveiras","Monte Sinai","Monte Moriá","Gólgota"],"answer":0},
+    {"id":193,"q":"Qual era o nome da mãe de Jesus?","options":["Maria","Ana","Isabel","Marta"],"answer":0},
+    {"id":194,"q":"Quem era o pai de José (marido de Maria)?","options":["Jacó","Davi","Eli","Abraão"],"answer":2},
+    {"id":195,"q":"Qual profeta foi enviado a Nínive?","options":["Jonas","Amós","Obadias","Habacuque"],"answer":0},
+    {"id":196,"q":"Quem foi o pai de João Batista?","options":["Zacarias","José","Joaquim","Abraão"],"answer":0},
+    {"id":197,"q":"O que significa a palavra 'Cristo'?","options":["Rei","Deus","Salvador","Ungido"],"answer":3},
+    {"id":198,"q":"Qual o primeiro nome do apóstolo Paulo?","options":["Saulo","Pedro","João","Tiago"],"answer":0},
+    {"id":199,"q":"Quem era o centurião romano que testemunhou a crucificação de Jesus?","options":["Pilatos","Caifás","Cornélio","Longino"],"answer":3},
+    {"id":200,"q":"Qual o nome da cidade onde Jesus cresceu?","options":["Belém","Nazaré","Jerusalém","Caná"],"answer":1},
+];
+// end of dataset
+
+// utilidades curtas
+function sfl(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+let poolIds=[], idx=0, sc=0, tleft=0, tmr=0, answered=[], initialQCount=0, initialTime=0;
+
+// elementos
+const E = id => document.getElementById(id);
+const menuView = E('menuView');
+const gameView = E('gameView');
+const content = E('content');
+const qIdx = E('qIdx'), qTotal = E('qTotal'), scoreEl = E('score'), timeDisplay = E('timeDisplay'), timeBar = E('timeBar');
+const resOverlay = E('resOverlay'), resTitle = E('resTitle'), resText = E('resText'), rankingText = E('rankingText');
+const root = E('root');
+const confirmOverlay = E('confirmOverlay');
+
+// Mapeia as perguntas por ID para acesso rápido
+const questionsById = _q.reduce((map, obj) => {
+    map[obj.id] = obj;
+    return map;
+}, {});
+
+// ligar botões do menu
+document.querySelectorAll('#menuView .btn').forEach(b=>{
+  b.addEventListener('click',()=> {
+    initialQCount = Number(b.getAttribute('data-q'));
+    initialTime = Number(b.getAttribute('data-t'));
+    start(initialQCount, initialTime);
+  });
+});
+
+document.getElementById('btnRestart').addEventListener('click', ()=> {
+  // resetar
+  if(tmr) clearInterval(tmr);
+  poolIds=[]; idx=0; sc=0; answered=[]; tleft=0;
+  menuView.classList.remove('hidden'); gameView.classList.add('hidden');
+  timeDisplay.textContent = formatTime(0); timeBar.style.width = '0%';
+});
+
+document.getElementById('btnRestartRound').addEventListener('click', () => {
+    confirmOverlay.classList.remove('hidden');
+});
+
+document.getElementById('confirmRestart').addEventListener('click', () => {
+    confirmOverlay.classList.add('hidden');
+    start(initialQCount, initialTime);
+});
+
+document.getElementById('confirmCancel').addEventListener('click', () => {
+    confirmOverlay.classList.add('hidden');
+});
+
+document.getElementById('againBtn').addEventListener('click', ()=>{
+  resOverlay.classList.add('hidden');
+  // reinicia mesma configuração: usar últimos answered.length como parâmetro? aqui voltamos ao menu
+  menuView.classList.remove('hidden'); gameView.classList.add('hidden');
+});
+
+document.getElementById('reviewBtn').addEventListener('click', ()=>{
+  // mostrar revisão simples
+  let html = '<div style="max-height:60vh;overflow:auto;padding-right:8px">';
+  if(answered.length===0) html += '<div class="small">Nenhuma resposta nesta rodada.</div>';
+  answered.forEach((a,i)=>{
+    const ok = a.chosen===a.correct;
+    html += `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03)"><div style="font-weight:600">${i+1}. ${a.q}</div>
+      <div style="font-size:13px;margin-top:6px">Sua: <strong style="color:${ok?'lightgreen':'#fca5a5'}">${a.options[a.chosen]||'—'}</strong> — Correta: <strong>${a.options[a.correct]}</strong></div></div>`;
+  });
+  html += '</div>';
+  resTitle.textContent = 'Revisão de respostas';
+  resText.innerHTML = html;
+  rankingText.textContent = '';
+});
+
+// funções do jogo
+function start(qcount, seconds){
+  // Cria uma lista de todos os IDs de perguntas
+  const allIds = Object.keys(questionsById).map(Number);
+  
+  // Embaralha os IDs e seleciona a quantidade desejada
+  poolIds = sfl(allIds).slice(0, qcount);
+
+  idx=0; sc=0; answered=[]; tleft=seconds;
+  scoreEl.textContent = sc; qTotal.textContent = poolIds.length; qIdx.textContent = 0;
+  menuView.classList.add('hidden'); gameView.classList.remove('hidden');
+  render();
+  if(tmr) clearInterval(tmr);
+  updateTime();
+  tmr = setInterval(() => {
+    tleft--;
+    updateTime();
+    if(tleft<=0){ clearInterval(tmr); finish(); }
+  },1000);
+}
+
+function updateTime(){
+  timeDisplay.textContent = formatTime(tleft);
+  // Store initial time if not set
+  if(!gameView.getAttribute('data-init-time')) {
+    gameView.setAttribute('data-init-time', tleft);
+  }
+  const initialTimeAttr = Number(gameView.getAttribute('data-init-time')) || 1;
+  const perc = Math.max(0, (tleft / initialTimeAttr) * 100);
+  timeBar.style.width = perc + '%';
+}
+
+// formata mm:ss
+function formatTime(s){ const m=Math.floor(s/60); const sec = s%60; return m + ':' + String(sec).padStart(2,'0'); }
+
+function render(){
+  if(idx>=poolIds.length){ finish(); return; }
+  const currentQuestionId = poolIds[idx];
+  const it = questionsById[currentQuestionId];
+
+  if (!it) { // Fallback de segurança caso o ID não seja encontrado
+      idx++;
+      render();
+      return;
+  }
+
+  qIdx.textContent = idx+1;
+  const html = `<div>
+    <div class="question">${escapeHtml(it.q)}</div>
+    <div class="grid">
+      ${it.options.map((o,i)=>`<div class="opt" data-i="${i}">${String.fromCharCode(65+i)}. ${escapeHtml(o)}</div>`).join('')}
+    </div>
+  </div>`;
+  content.innerHTML = html;
+  Array.from(document.querySelectorAll('.opt')).forEach(el=>{
+    el.addEventListener('click', onChoose);
+  });
+}
+
+function onChoose(e){
+  const ch = Number(e.currentTarget.getAttribute('data-i'));
+  const currentQuestionId = poolIds[idx];
+  const it = questionsById[currentQuestionId];
+
+  const corr = it.answer;
+  // marca visual
+  document.querySelectorAll('.opt').forEach(el=>{
+    const i = Number(el.getAttribute('data-i'));
+    if(i===corr) el.classList.add('correct');
+    if(i===ch && i!==corr) el.classList.add('wrong');
+    el.style.pointerEvents = 'none';
+  });
+  if(ch===corr) sc++;
+  scoreEl.textContent = sc;
+  answered.push({ q: it.q, options: it.options, chosen: ch, correct: corr });
+  idx++;
+  setTimeout(()=>{ if(tleft>0) render(); }, 300);
+}
+
+function finish(){
+  if(tmr) clearInterval(tmr);
+  resOverlay.classList.remove('hidden');
+  const initialQCount = poolIds.length;
+  const percentage = initialQCount > 0 ? (sc / initialQCount) * 100 : 0;
+  let rankingMessage = '';
+
+  if (percentage >= 100) {
+      rankingMessage = 'Professor de Teologia - Você acertou 100% das questões';
+  } else if (percentage >= 95) {
+      rankingMessage = 'Gênio das Escrituras - Você acertou 95% das questões';
+  } else if (percentage >= 70) {
+      rankingMessage = 'Bom na leitura da Palavra - Você acertou 70% das questões';
+  } else if (percentage >= 40) {
+      rankingMessage = 'Precisa melhorar mais - Você acertou apenas 40% das questões';
+  } else {
+      rankingMessage = 'Precisa estudar mais - Você acertou apenas 20% das questões';
+  }
+
+  resTitle.textContent = 'Rodada finalizada!';
+  resText.innerHTML = `Você acertou <strong>${sc}</strong> de <strong>${answered.length}</strong> perguntas.`;
+  rankingText.textContent = `Seu ranking: ${rankingMessage}`;
+
+  gameView.removeAttribute('data-init-time');
+}
+
+// pequena função para escapar HTML seguro
+function escapeHtml(t){ return String(t).replace(/[&<>"']/g, function(a){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]; }); }
+</script>
+</body>
+</html>
